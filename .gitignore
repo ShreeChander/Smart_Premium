@@ -119,5 +119,9 @@ a.md
 *.pymon
 
 CSV/
+
+encoder.pkl
+
+
 # Ignore a gunicorn config file
 gunicorn.conf.py

@@ -1,53 +1,81 @@
-import pandas as pd
-import mlflow.pyfunc
 import streamlit as st
+import pandas as pd
+import numpy as np
+import pickle
+import mlflow.pyfunc
+
 # Load the trained model
-model_uri = 'runs:/899d644802f5443c9bc96e02144efddf/xgboost_model'
+model_uri = "runs:/899d644802f5443c9bc96e02144efddf/xgboost_model"
 model = mlflow.pyfunc.load_model(model_uri)
 
-# Define expected features based on training data
-expected_features = [
-    "Age", "Gender", "Annual Income", "Marital Status", "Number of Dependents",
-    "Education Level", "Occupation", "Health Score", "Location", "Policy Type",
-    "Previous Claims", "Vehicle Age", "Credit Score", "Insurance Duration",
-    "Smoking Status", "Exercise Frequency", "Property Type"
-]
+# Load OneHotEncoder
+with open("encoder.pkl", "rb") as f:
+    encoder = pickle.load(f)
 
-# Function to get user input
-def get_user_input():
-    data = {
-        "Age": st.number_input("Age", min_value=18, max_value=100, value=30),
-        "Gender": st.selectbox("Gender", ["Male", "Female"]),
-        "Annual Income": st.number_input("Annual Income", min_value=5000, max_value=500000, value=30000),
-        "Marital Status": st.selectbox("Marital Status", ["Single", "Married", "Divorced"]),
-        "Number of Dependents": st.number_input("Number of Dependents", min_value=0, max_value=10, value=1),
-        "Education Level": st.selectbox("Education Level", ["High School", "Bachelor's", "Master's", "PhD"]),
-        "Occupation": st.selectbox("Occupation", ["Employed", "Self-Employed", "Unemployed"]),
-        "Health Score": st.number_input("Health Score", min_value=0.0, max_value=100.0, value=50.0),
-        "Location": st.selectbox("Location", ["Urban", "Suburban", "Rural"]),
-        "Policy Type": st.selectbox("Policy Type", ["Basic", "Comprehensive", "Premium"]),
-        "Previous Claims": st.number_input("Previous Claims", min_value=0, max_value=10, value=1),
-        "Vehicle Age": st.number_input("Vehicle Age", min_value=0, max_value=30, value=5),
-        "Credit Score": st.number_input("Credit Score", min_value=300, max_value=850, value=600),
-        "Insurance Duration": st.number_input("Insurance Duration", min_value=1, max_value=10, value=5),
-        "Smoking Status": st.selectbox("Smoking Status", ["Yes", "No"]),
-        "Exercise Frequency": st.selectbox("Exercise Frequency", ["Daily", "Weekly", "Monthly", "Rarely"]),
-        "Property Type": st.selectbox("Property Type", ["House", "Apartment", "Condo"]),
-    }
+# Define expected numerical & categorical features
+num_cols = ['Age', 'Annual Income', 'Number of Dependents', 'Health Score',
+            'Previous Claims', 'Vehicle Age', 'Credit Score', 'Insurance Duration']
 
-    # Convert to DataFrame and ensure column order
-    user_df = pd.DataFrame([data])
-    user_df = user_df[expected_features]  # Ensure correct column order
+cat_cols = ['Gender', 'Marital Status', 'Education Level', 'Occupation', 'Location',
+            'Policy Type', 'Customer Feedback', 'Smoking Status', 'Exercise Frequency', 'Property Type']
 
-    return user_df
+# Load expected feature order
+expected_features = num_cols + list(encoder.get_feature_names_out(cat_cols))
 
 # Streamlit UI
-st.title("🚀 Insurance Premium Prediction")
+st.title("Insurance Premium Prediction")
 
-# Get user input
-user_input = get_user_input()
+# **Updated Default Values**
+default_values = {
+    'Age': 19,
+    'Annual Income': 10049,
+    'Number of Dependents': 1,
+    'Health Score': 22.59876,
+    'Previous Claims': 2,
+    'Vehicle Age': 17,
+    'Credit Score': 372,
+    'Insurance Duration': 5,
+    'Gender': 'Female',
+    'Marital Status': 'Married',
+    'Education Level': "Bachelor's",
+    'Occupation': "Self-Employed",
+    'Location': "Urban",
+    'Policy Type': "Premium",
+    'Customer Feedback': "Poor",
+    'Smoking Status': "No",
+    'Exercise Frequency': "Weekly",
+    'Property Type': "House"
+}
 
-# Make Prediction when button is clicked
-if st.button("Predict Premium Amount"):
-    prediction = model.predict(user_input)
-    st.success(f"💰 Predicted Premium Amount: **${prediction[0]:,.2f}**")
+# User input fields with default values
+user_inputs = {}
+for col in num_cols:
+    user_inputs[col] = st.number_input(f"Enter {col}", min_value=0.0, value=float(default_values[col]), format="%.2f")
+
+for col in cat_cols:
+    user_inputs[col] = st.selectbox(f"Select {col}", 
+                                    options=['Unknown', 'Male', 'Female'] if col == 'Gender' else ['Unknown', 'Yes', 'No', 'Married', 'Single', 'Divorced'],
+                                    index=['Unknown', 'Male', 'Female'].index(default_values[col]) if col == 'Gender' else 
+                                          ['Unknown', 'Yes', 'No', 'Married', 'Single', 'Divorced'].index(default_values[col]) if default_values[col] in ['Yes', 'No', 'Married', 'Single', 'Divorced', 'Unknown'] else 0)
+
+# Convert input to DataFrame
+input_data = pd.DataFrame([user_inputs])
+
+# **Handle Categorical Encoding**
+encoded_cat = encoder.transform(input_data[cat_cols])
+encoded_cat_df = pd.DataFrame(encoded_cat.toarray(), columns=encoder.get_feature_names_out(cat_cols))
+
+# Merge encoded categorical & numerical data
+input_data = input_data.drop(columns=cat_cols)
+input_data = pd.concat([input_data, encoded_cat_df], axis=1)
+
+# **Ensure Feature Order Matches Model**
+input_data = input_data.reindex(columns=expected_features, fill_value=0)
+
+# **Check Feature Shape**
+if input_data.shape[1] != len(expected_features):
+    st.error(f"Feature shape mismatch: Expected {len(expected_features)}, got {input_data.shape[1]}")
+else:
+    if st.button("Predict Premium"):
+        prediction = model.predict(input_data)
+        st.success(f"Predicted Insurance Premium: ${prediction[0]:.2f}")
