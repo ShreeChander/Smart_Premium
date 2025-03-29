@@ -118,5 +118,6 @@ a.md
 # Pytest-monitor load testing DB file
 *.pymon
 
+CSV/
 # Ignore a gunicorn config file
 gunicorn.conf.py
