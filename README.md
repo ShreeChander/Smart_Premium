@@ -83,6 +83,15 @@ streamlit run app.py
 
 ---
 
+## Live Demo
+You can access the deployed Streamlit application here:
+[Smart Premium App](https://smart-premium-app.streamlit.app/)
+
+## Requirements
+All dependencies required to run this project are listed in `requirements.txt`.
+
+---
+
 ## Future Improvements
 - **Enhance Model Accuracy**: Fine-tune hyperparameters and explore deep learning models.
 - **Add More Features**: Include additional lifestyle and financial attributes.
