@@ -1,145 +1,105 @@
-import streamlit as st
-import pickle
+import streamlit as st 
 import pandas as pd
-import numpy as np
-from datetime import datetime
+import joblib
 
-# Load model and preprocessing objects
-with open('XGBRegressor.pkl', 'rb') as f:
-    model = pickle.load(f)
-with open('encoder.pkl', 'rb') as f:
-    encoder = pickle.load(f)
-with open('scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
+# Expand page width
+st.set_page_config(page_title="Smart Premium Predictor", layout="wide")
 
-# Expected feature order for the model
-expected_features = [
-    'Age', 'Gender', 'Annual Income', 'Number of Dependents', 'Education Level', 
-    'Health Score', 'Policy Type', 'Previous Claims', 'Vehicle Age', 'Credit Score', 
-    'Insurance Duration', 'Customer Feedback', 'Smoking Status', 'Exercise Frequency', 
-    'Marital Status_Divorced', 'Marital Status_Married', 'Marital Status_Single', 
-    'Occupation_Employed', 'Occupation_Self-Employed', 'Occupation_Unemployed', 
-    'Location_Rural', 'Location_Suburban', 'Location_Urban', 'Property Type_Apartment', 
-    'Property Type_Condo', 'Property Type_House', 'Year', 'Month'
-]
+# Load the trained model
+model = joblib.load("ml_model.pkl")
 
-st.title("Insurance Claim Prediction")
+# Page title and description
+st.title("Smart Premium Predictor")
+st.write("Easily estimate your insurance premium based on key personal and policy details.")
 
-def get_user_input():
-    st.header("Personal Information")
-    col1, col2 = st.columns(2)
+# Default values
+default_values = {
+    "Age": 19,
+    "Gender": "Female",
+    "Annual Income": 10049,
+    "Marital Status": "Married",
+    "Number of Dependents": 1,
+    "Education Level": "Bachelor's",
+    "Occupation": "Self-Employed",
+    "Health Score": 22.6,
+    "Location": "Urban",
+    "Policy Type": "Premium",
+    "Previous Claims": 2,
+    "Vehicle Age": 17,
+    "Credit Score": 372,
+    "Insurance Duration": 5,
+    "Property Type": "House",
+    "Customer Feedback": "Poor",
+    "Smoking Status": "No",
+    "Exercise Frequency": "Weekly"
+}
+
+# Checkbox for using default values
+use_defaults = st.checkbox("Use Default Values")
+
+# User input form
+with st.form(key='premium_form'):
+    col1, col2, col3 = st.columns([3, 3, 3])
+
     with col1:
-        age = st.number_input("Age", 18, 100, 19)  # Default: 19
-        gender = st.selectbox("Gender", ["Male", "Female"], index=1)  # Default: Female
-        marital_status = st.selectbox("Marital Status", ["Single", "Married", "Divorced"], index=1)  # Default: Married
-        dependents = st.number_input("Number of Dependents", 0, 10, 1)  # Default: 1
-        
+        Age = st.number_input("Age", min_value=0, max_value=100, step=1, value=default_values["Age"] if use_defaults else 0)
+        Gender = st.selectbox("Gender", ["Female", "Male"], index=0 if use_defaults else 0)
+        Annual_Income = st.number_input("Annual Income", min_value=0, max_value=1000000, step=1000, value=default_values["Annual Income"] if use_defaults else 0)
+        Marital_Status = st.selectbox("Marital Status", ["Married", "Divorced", "Single"], index=0 if use_defaults else 0)
+
     with col2:
-        income = st.number_input("Annual Income ($)", 1000, 500000, 10049)  # Default: 10049
-        occupation = st.selectbox("Occupation", ["Unemployed", "Self-Employed", "Employed"], index=1)  # Default: Self-Employed
-        education = st.selectbox("Education Level", ["High School", "Bachelor's", "Master's", "PhD"], index=1)  # Default: Bachelor's
-        location = st.selectbox("Location", ["Urban", "Suburban", "Rural"], index=0)  # Default: Urban
+        Number_of_Dependents = st.number_input("Number of Dependents", min_value=0, max_value=4, step=1, value=default_values["Number of Dependents"] if use_defaults else 0)
+        Education_Level = st.selectbox("Education Level", ["Bachelor's", "Master's", "High School", "PhD"], index=0 if use_defaults else 0)
+        Occupation = st.selectbox("Occupation", ["Self-Employed", "Employed", "Unemployed"], index=0 if use_defaults else 0)
+        Health_Score = st.number_input("Health Score", min_value=0.0, max_value=60.0, step=0.5, value=default_values["Health Score"] if use_defaults else 0.0)
+
+    with col3:
+        Location = st.selectbox("Location", ["Urban", "Rural", "Suburban"], index=0 if use_defaults else 0)
+        Policy_Type = st.selectbox("Policy Type", ["Premium", "Comprehensive", "Basic"], index=0 if use_defaults else 0)
+        Previous_Claims = st.number_input("Previous Claims", min_value=0, max_value=10, step=1, value=default_values["Previous Claims"] if use_defaults else 0)
+        Vehicle_Age = st.number_input("Vehicle Age", min_value=0, max_value=20, step=1, value=default_values["Vehicle Age"] if use_defaults else 0)
+       
+
+    col4, col5, col6 = st.columns([3, 3, 3])
+    with col4:
+        Property_Type = st.selectbox("Property Type", ["House", "Apartment", "Condo"], index=0 if use_defaults else 0)
+        Insurance_Duration = st.number_input("Insurance Duration", min_value=1, max_value=10, step=1, value=default_values["Insurance Duration"] if use_defaults else 1)
+    with col5:
+        Customer_Feedback = st.selectbox("Customer Feedback", ["Poor", "Average", "Good"], index=0 if use_defaults else 0)
+        Credit_Score = st.number_input("Credit Score", min_value=0, max_value=1000, step=50, value=default_values["Credit Score"] if use_defaults else 0)
+        
+    with col6:
+        Smoking_Status = st.selectbox("Smoking Status", ["No", "Yes"], index=0 if use_defaults else 0)
+        Exercise_Frequency = st.selectbox("Exercise Frequency", ["Weekly", "Monthly", "Daily", "Rarely"], index=0 if use_defaults else 0)
+
+    submit_button = st.form_submit_button(label='Predict Premium Amount')
+
+if submit_button:
+    df = pd.DataFrame({
+        'Age': [Age], 'Gender': [Gender], 'Annual Income': [Annual_Income],
+        'Marital Status': [Marital_Status], 'Number of Dependents': [Number_of_Dependents],
+        'Education Level': [Education_Level], 'Occupation': [Occupation],
+        'Health Score': [Health_Score], 'Location': [Location], 'Policy Type': [Policy_Type],
+        'Previous Claims': [Previous_Claims], 'Vehicle Age': [Vehicle_Age],
+        'Credit Score': [Credit_Score], 'Insurance Duration': [Insurance_Duration],
+        'Property Type': [Property_Type], 'Customer Feedback': [Customer_Feedback],
+        'Smoking Status': [Smoking_Status], 'Exercise Frequency': [Exercise_Frequency]
+    })
+    premium_amt = model.predict(df)
+    st.subheader(f"Predicted Premium Amount: **${premium_amt[0]:.2f}**")
+
+# Explanation Section
+st.markdown("---")
+st.write(
+    """
+    ### How Premium is Calculated?
+    Insurance premium is influenced by various factors such as age, income, lifestyle habits, and past claims. Here’s how each factor contributes:
+    - **Age**: Younger individuals may have lower premiums.
+    - **Annual Income**: Higher income can indicate more expensive policies.
+    - **Health Score & Lifestyle**: Smokers or those with lower exercise frequency may face higher premiums.
+    - **Previous Claims**: A history of claims can increase future premiums.
+    - **Policy Type**: Premium and comprehensive policies tend to have higher costs.
     
-    st.header("Health & Insurance Details")
-    col1, col2 = st.columns(2)
-    with col1:
-        health = st.slider("Health Score", 0, 100, 23)  # Default: 22.59876067 (Rounded to 23)
-        smoking = st.selectbox("Smoking Status", ["Yes", "No"], index=1)  # Default: No
-        exercise = st.selectbox("Exercise Frequency", ["Rarely", "Monthly", "Weekly", "Daily"], index=2)  # Default: Weekly
-        
-    with col2:
-        claims = st.number_input("Previous Claims", 0, 50, 2)  # Default: 2
-        vehicle_age = st.number_input("Vehicle Age", 0, 30, 17)  # Default: 17
-        credit = st.slider("Credit Score", 300, 850, 372)  # Default: 372
-        insurance_years = st.number_input("Insurance Duration (years)", 0, 50, 5)  # Default: 5
-    
-    st.header("Policy Details")
-    policy_type = st.selectbox("Policy Type", ["Basic", "Standard", "Comprehensive", "Premium"], index=3)  # Default: Premium
-    property_type = st.selectbox("Property Type", ["Apartment", "House", "Condo"], index=1)  # Default: House
-    feedback = st.selectbox("Customer Feedback", ["Poor", "Average", "Good"], index=0)  # Default: Poor
-    
-    # Get current year and month
-    year = datetime.now().year
-    month = datetime.now().month
-
-    data = {
-        "Age": age,
-        "Gender": 1 if gender == "Male" else 0,  # Encode Gender
-        "Annual Income": income,
-        "Number of Dependents": dependents,
-        "Education Level": education,
-        "Health Score": health,
-        "Policy Type": policy_type,
-        "Previous Claims": claims,
-        "Vehicle Age": vehicle_age,
-        "Credit Score": credit,
-        "Insurance Duration": insurance_years,
-        "Customer Feedback": feedback,
-        "Smoking Status": 1 if smoking == "Yes" else 0,  # Encode Smoking Status
-        "Exercise Frequency": exercise,
-        "Marital Status": marital_status,
-        "Occupation": occupation,
-        "Location": location,
-        "Property Type": property_type,
-        "Year": year,
-        "Month": month
-    }
-    
-    return pd.DataFrame([data])
-
-# Get input
-input_df = get_user_input()
-
-# Add prediction button
-if st.button("Predict"):
-    try:
-        # Encode categorical variables using the fitted encoder
-        categorical_cols = ["Education Level", "Policy Type", "Customer Feedback", "Exercise Frequency"]
-        input_df[categorical_cols] = encoder.transform(input_df[categorical_cols])
-
-        # One-hot encode remaining categorical features
-        ohe_cols = ["Marital Status", "Occupation", "Location", "Property Type"]
-        input_df = pd.get_dummies(input_df, columns=ohe_cols)
-
-        # Ensure all expected columns exist
-        for feature in expected_features:
-            if feature not in input_df.columns:
-                input_df[feature] = 0  # Add missing columns with default value 0
-
-        # Reorder columns to match model training order
-        input_df = input_df[expected_features]
-
-        # Scale numerical features
-        num_cols = ["Age", "Annual Income", "Number of Dependents", "Health Score", 
-                    "Previous Claims", "Vehicle Age", "Credit Score", "Insurance Duration"]
-        input_df[num_cols] = scaler.transform(input_df[num_cols])
-
-        # Make prediction (scaled output)
-        predicted_value_scaled = model.predict(input_df).reshape(-1, 1)  # Ensure correct shape
-        
-        # Create a dummy array with the same shape as the scaler's training data
-        dummy_array = np.zeros((1, 8))  # Assuming 8 numerical features were scaled
-        dummy_array[0, -1] = predicted_value_scaled[0, 0]  # Insert predicted premium amount in last column
-        
-        # Apply inverse transform
-        predicted_value_original = scaler.inverse_transform(dummy_array)[0, -1]  # Extract correct value
-        
-        # Display results
-        st.success("Prediction completed successfully!")
-        st.subheader("Results")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Predicted Premium", f"${predicted_value_original:.2f}")  # Display actual premium amount
-
-        prediction = 1 if predicted_value_original > 2000 else 0  # Example threshold for claim risk
-        with col2:
-            st.metric("Claim Risk", "Likely" if prediction else "Unlikely")
-
-        if prediction:
-            st.warning("High claim risk detected based on input parameters")
-        else:
-            st.success("Low claim risk predicted")
-
-    except Exception as e:
-        st.error(f"Prediction failed: {str(e)}")
+    🔍 Ensure accuracy in details for a precise premium estimate!
+    """
+)
