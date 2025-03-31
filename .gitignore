@@ -121,7 +121,7 @@ a.md
 CSV/
 
 encoder.pkl
-*.pkl
+
 
 # Ignore a gunicorn config file
 gunicorn.conf.py
